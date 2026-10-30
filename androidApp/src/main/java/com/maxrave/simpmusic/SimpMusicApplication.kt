@@ -23,12 +23,9 @@ import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.artwork.AndroidArtworkStore
 import com.maxrave.simpmusic.artwork.ArtworkStore
-import com.maxrave.simpmusic.canvas.AndroidCanvasStore
-import com.maxrave.simpmusic.canvas.CanvasStore
 import com.maxrave.simpmusic.di.viewModelModule
 import com.maxrave.simpmusic.service.backup.AutoBackupScheduler
 import com.maxrave.simpmusic.service.sync.LibrarySyncScheduler
-import com.maxrave.simpmusic.expect.isNetworkAvailable
 import com.maxrave.simpmusic.utils.LocalArtworkInterceptor
 import com.maxrave.simpmusic.utils.NetworkFirstInterceptor
 import kotlinx.coroutines.CoroutineScope
@@ -45,6 +42,7 @@ import org.koin.core.component.inject
 import org.koin.core.context.loadKoinModules
 import org.koin.core.context.startKoin
 import org.koin.core.logger.Level
+import org.koin.dsl.module
 import org.simpmusic.crashlytics.configCrashlytics
 import org.simpmusic.lastfm.configLastfm
 import java.io.File
@@ -57,6 +55,7 @@ class SimpMusicApplication :
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val dataStoreManager: DataStoreManager by inject()
+    private val artworkStore: ArtworkStore by inject()
     private lateinit var autoBackupScheduler: AutoBackupScheduler
 
     override fun onCreate() {
@@ -81,7 +80,6 @@ class SimpMusicApplication :
                     viewModelModule,
                     module {
                         single<ArtworkStore> { AndroidArtworkStore(this@SimpMusicApplication) }
-                        single<CanvasStore> { AndroidCanvasStore(this@SimpMusicApplication) }
                     },
                 )
             )
@@ -140,7 +138,7 @@ class SimpMusicApplication :
                 .Builder(context)
                 .components {
                     add(LocalArtworkInterceptor(artworkStore))
-                    add(NetworkFirstInterceptor(isOnline = { isNetworkAvailable() }) { imageLoader })
+                    add(NetworkFirstInterceptor { imageLoader })
                     add(
                         OkHttpNetworkFetcherFactory(
                             callFactory = {

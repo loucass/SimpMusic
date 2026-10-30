@@ -72,8 +72,6 @@ import com.maxrave.logger.LogLevel
 import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.artwork.ArtworkStore
-import com.maxrave.simpmusic.canvas.CanvasSource
-import com.maxrave.simpmusic.canvas.CanvasStore
 import com.maxrave.simpmusic.expect.getDownloadFolderPath
 import com.maxrave.simpmusic.expect.isNetworkAvailable
 import com.maxrave.simpmusic.expect.isOnUnmeteredNetwork
@@ -158,7 +156,6 @@ class SharedViewModel(
     private val appIdentity: AppIdentity by inject()
     private val downloadHandler: DownloadHandler by inject()
     private val artworkStore: ArtworkStore by inject()
-    private val canvasStore: CanvasStore by inject()
 
     private val _isCheckingUpdate = MutableStateFlow(false)
     val isCheckingUpdate: StateFlow<Boolean> = _isCheckingUpdate
@@ -295,7 +292,7 @@ class SharedViewModel(
 
     init {
         viewModelScope.launch {
-            observeDownloadedMedia()
+            observeDownloadedArtwork()
         }
         viewModelScope.launch {
             log("SharedViewModel init")
@@ -1245,28 +1242,23 @@ class SharedViewModel(
     private var artworkSyncJob: Job? = null
 
     /**
-     * Pins covers for downloads that predate artwork pinning, finishes covers for downloads still
-     * in progress, and drops pinned media whose download is gone. Called when the app comes to
-     * the foreground: a widget creating this ViewModel in the background must not start a batch
-     * of downloads. Cheap after the first pass, because [ArtworkStore.save] returns before the
-     * network when the file is already there. Canvases are not backfilled here: a downloaded song
-     * gets its canvas when it is played online, or when it is downloaded again, so opening the
-     * app does not silently fetch gigabytes of video for an old library.
+     * Pins covers for downloads that predate this feature, finishes covers for downloads still in
+     * progress, and drops pinned covers whose download is gone. Called when the app comes to the
+     * foreground: a widget creating this ViewModel in the background must not start a batch of
+     * image downloads. Cheap after the first pass, because [ArtworkStore.save] returns before the
+     * network when the file is already there.
      */
-    fun ensureDownloadedMedia() {
+    fun ensureDownloadedArtwork() {
         if (artworkSyncJob?.isActive == true) return
         artworkSyncJob =
             viewModelScope.launch {
                 val downloaded = songRepository.getDownloadedSongs().firstOrNull().orEmpty()
-                // A download that is still running keeps its media too: retainOnly must not delete
+                // A download that is still running keeps its cover too: retainOnly must not delete
                 // it just because the song is not in the downloaded table yet.
                 val downloading = songRepository.getDownloadingSongs().firstOrNull().orEmpty()
                 val songs = downloaded + downloading
                 val urls = songs.mapNotNull { it.thumbnails?.takeIf { url -> url.isNotBlank() } }
                 artworkStore.retainOnly(urls)
-                // Removing a download deletes its canvas immediately; this sweep catches the
-                // cases that never reached that code, such as a process killed mid-removal.
-                canvasStore.retainOnly(songs.map { it.videoId })
                 songs.forEach { song ->
                     val url = song.thumbnails?.takeIf { it.isNotBlank() } ?: return@forEach
                     artworkStore.save(song.videoId, url)
@@ -1274,18 +1266,13 @@ class SharedViewModel(
             }
     }
 
-    // A bulk download can start dozens of transitions at once. Cap the cover/lyrics/canvas
-    // fetches they trigger so the app does not open a connection per song; Media3 still handles
-    // the audio/video downloads themselves.
-    private val mediaPinSemaphore = Semaphore(permits = 3)
-
     /**
-     * Pins the cover and canvas of every song whose download starts while this process is alive.
-     * A download that was already running when the ViewModel was created is picked up by
-     * [ensureDownloadedMedia]; completed ones are left to it too, so they are not fetched again
+     * Pins the cover of every song whose download starts while this process is alive. A download
+     * that was already running when the ViewModel was created is picked up by
+     * [ensureDownloadedArtwork]; completed ones are left to it too, so they are not fetched again
      * in the background.
      */
-    private suspend fun observeDownloadedMedia() {
+    private suspend fun observeDownloadedArtwork() {
         var previous = emptyMap<String, Int>()
         downloadHandler.downloadTask.collect { tasks ->
             tasks.forEach { (videoId, state) ->
@@ -1296,11 +1283,10 @@ class SharedViewModel(
                     state == DownloadState.STATE_PREPARING ||
                         state == DownloadState.STATE_DOWNLOADING
                 if (!wasDownloading && isDownloading) {
-                    // Save off the collector: fetching a cover or a canvas can take a while, and
-                    // the download state flow conflates, so blocking here could drop the next
-                    // song's transition.
+                    // Save off the collector: fetching a cover can take a while, and the download
+                    // state flow conflates, so blocking here could drop the next song's transition.
                     viewModelScope.launch {
-                        saveDownloadedMedia(videoId)
+                        saveArtworkFor(videoId)
                     }
                 }
             }
@@ -1308,46 +1294,10 @@ class SharedViewModel(
         }
     }
 
-    private suspend fun saveDownloadedMedia(videoId: String) {
+    private suspend fun saveArtworkFor(videoId: String) {
         val song = songRepository.getSongById(videoId).firstOrNull() ?: return
-        song.thumbnails?.takeIf { it.isNotBlank() }?.let { url ->
-            artworkStore.save(videoId, url)
-        }
-        pinCanvasFor(song)
-    }
-
-    /**
-     * Pins the canvas of a song whose download just started, so the song is complete when the
-     * device goes offline. Both switches are checked here, not just where the canvas is shown:
-     * a user who turned canvas off does not expect downloads to keep fetching it.
-     */
-    private suspend fun pinCanvasFor(song: SongEntity) {
-        val amEnabled = dataStoreManager.amAnimatedArtwork.first() == TRUE
-        val spotifyEnabled = dataStoreManager.spotifyCanvas.first() == TRUE
-        if (!amEnabled && !spotifyEnabled) return
-        val pinned = canvasStore.pinned(song.videoId)
-        if (pinned != null && pinned.isEnabled(amEnabled, spotifyEnabled)) return
-
-        val sources =
-            buildList {
-                if (amEnabled) {
-                    add(lyricsCanvasRepository.getAMAnimatedArtwork(song.videoId))
-                }
-                if (spotifyEnabled) {
-                    add(lyricsCanvasRepository.getCanvas(dataStoreManager, song.videoId, song.durationSeconds))
-                }
-            }
-        for (source in sources) {
-            val data =
-                source.cancellable().firstOrNull { it is Resource.Success && it.data != null }?.data
-                    ?: continue
-            val saved = canvasStore.save(song.videoId, data.canvasUrl, data.canvasThumbUrl, data.isVideo)
-            if (saved != null) {
-                if (data.isVideo) lyricsCanvasRepository.updateCanvasUrl(song.videoId, data.canvasUrl)
-                data.canvasThumbUrl?.let { lyricsCanvasRepository.updateCanvasThumbUrl(song.videoId, it) }
-                return
-            }
-        }
+        val url = song.thumbnails?.takeIf { it.isNotBlank() } ?: return
+        artworkStore.save(videoId, url)
     }
 
     private var smartDownloadsJob: Job? = null

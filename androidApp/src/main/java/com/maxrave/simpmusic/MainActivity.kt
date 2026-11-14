@@ -84,6 +84,18 @@ class MainActivity : AppCompatActivity() {
         startMusicService()
         // Every return to the screen asks; the pass itself runs at most once a day.
         viewModel.runSmartDownloadsIfDue()
+        // Backfills covers for old downloads and drops pinned media whose download is gone.
+        viewModel.ensureDownloadedMedia()
+        syncLibraryIfDue()
+    }
+
+    // ponytail: a fixed 5-minute gap between app-open rounds, since a computer that is off costs a
+    // LAN sweep each time; WorkManager covers the rest every 15 minutes, and "Sync now" ignores it.
+    private fun syncLibraryIfDue() {
+        val now = SystemClock.elapsedRealtime()
+        if (lastLibrarySyncAt != 0L && now - lastLibrarySyncAt < 5 * 60_000L) return
+        lastLibrarySyncAt = now
+        lifecycleScope.launch { librarySync.syncNow() }
     }
 
     override fun onStop() {

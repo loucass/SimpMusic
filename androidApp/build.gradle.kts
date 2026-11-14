@@ -71,9 +71,16 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
-            abiFilters.add("x86_64")
-            abiFilters.add("armeabi-v7a")
-            abiFilters.add("arm64-v8a")
+            // The throwaway CI branch narrows the APK to one ABI so the artifact stays small;
+            // normal builds keep every ABI.
+            val ciAbi = project.findProperty("ciAbi") as String?
+            if (ciAbi != null) {
+                abiFilters.add(ciAbi)
+            } else {
+                abiFilters.add("x86_64")
+                abiFilters.add("armeabi-v7a")
+                abiFilters.add("arm64-v8a")
+            }
         }
     }
 

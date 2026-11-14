@@ -27,6 +27,7 @@ import com.maxrave.domain.utils.LocalResource
 import com.maxrave.logger.LogLevel
 import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.artwork.ArtworkStore
+import com.maxrave.simpmusic.canvas.CanvasStore
 import com.maxrave.simpmusic.expect.isOnUnmeteredNetwork
 import com.maxrave.simpmusic.viewModel.base.BaseViewModel
 import kotlinx.coroutines.Dispatchers
@@ -84,6 +85,7 @@ class SettingsViewModel(
     private val databasePath: String? = commonRepository.getDatabasePath()
     private val downloadUtils: DownloadHandler by inject()
     private val artworkStore: ArtworkStore by inject()
+    private val canvasStore: CanvasStore by inject()
 
     val castState: StateFlow<GenericCastState> get() = mediaPlayerHandler.castState
 
@@ -1302,6 +1304,7 @@ class SettingsViewModel(
             getDownloadedCacheSize()
             downloadUtils.removeAllDownloads()
             artworkStore.retainOnly(emptyList())
+            canvasStore.clear()
         }
     }
 

@@ -2874,3 +2874,4 @@ sealed class VoteState {
  * of a track onwards.
  */
 private fun String.isCanvasVideoUrl(): Boolean = contains(".mp4") || contains(".m3u8")
+}

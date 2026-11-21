@@ -2039,6 +2039,7 @@ class SharedViewModel(
             }
         }
     }
+    }
 
     private suspend fun getSimpMusicLyrics(
         videoId: String,

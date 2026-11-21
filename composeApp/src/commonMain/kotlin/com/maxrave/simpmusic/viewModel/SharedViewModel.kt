@@ -1431,16 +1431,19 @@ class SharedViewModel(
                     videoId,
                     dataStoreManager.translationLanguage.first(),
                 ).collectLatest { res ->
-                    if (res is Resource.Success && res.data != null) {
-                        insertTranslatedLyrics(
-                            TranslatedLyricsEntity(
-                                videoId = videoId,
-                                language = dataStoreManager.translationLanguage.first(),
-                                error = false,
-                                lines = res.data.lines,
-                                syncType = res.data.syncType,
+                    if (res is Resource.Success) {
+                        val data = res.data
+                        if (data != null) {
+                            insertTranslatedLyrics(
+                                TranslatedLyricsEntity(
+                                    videoId = videoId,
+                                    language = dataStoreManager.translationLanguage.first(),
+                                    error = false,
+                                    lines = data.lines,
+                                    syncType = data.syncType,
+                                )
                             )
-                        )
+                        }
                     }
                 }
         }
@@ -1494,6 +1497,7 @@ class SharedViewModel(
                             )
                         }
                     }
+                    else -> { /* do nothing */ }
                 }
             }
     }
@@ -1996,10 +2000,9 @@ class SharedViewModel(
                 if (_nowPlayingScreenData.value.lyricsData == null) {
                     _nowPlayingScreenData.update { it.copy(lyricsNotFound = true) }
                 }
-                return
-            }
-            val lyricsProvider = dataStoreManager.lyricsProvider.first()
-            when (lyricsProvider) {
+            } else {
+                val lyricsProvider = dataStoreManager.lyricsProvider.first()
+                when (lyricsProvider) {
                 DataStoreManager.SIMPMUSIC -> {
                     getSimpMusicLyrics(
                         videoId,

@@ -17,13 +17,14 @@ class NotificationViewModel(
     val listNotification: StateFlow<List<NotificationEntity>?> = _listNotification
 
     init {
-        if (!isNetworkAvailable()) return
-        viewModelScope.launch {
-            commonRepository.getAllNotifications().collect { notificationEntities ->
-                _listNotification.value =
-                    notificationEntities?.sortedByDescending {
-                        it.time
-                    }
+        if (isNetworkAvailable()) {
+            viewModelScope.launch {
+                commonRepository.getAllNotifications().collect { notificationEntities ->
+                    _listNotification.value =
+                        notificationEntities?.sortedByDescending {
+                            it.time
+                        }
+                }
             }
         }
     }

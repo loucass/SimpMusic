@@ -23,6 +23,9 @@ import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.di.viewModelModule
 import com.maxrave.simpmusic.service.backup.AutoBackupScheduler
+import com.maxrave.simpmusic.service.sync.LibrarySyncScheduler
+import com.maxrave.simpmusic.expect.isNetworkAvailable
+import com.maxrave.simpmusic.utils.LocalArtworkInterceptor
 import com.maxrave.simpmusic.utils.NetworkFirstInterceptor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

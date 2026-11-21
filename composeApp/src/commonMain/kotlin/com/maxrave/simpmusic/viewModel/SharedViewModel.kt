@@ -667,6 +667,32 @@ class SharedViewModel(
             // animated artwork first, and a Spotify canvas only if that found nothing AND the user
             // has that switch on too. Neither switch touches the other — a track with no animated
             // artwork still gets its canvas, and turning Spotify off still means no canvas at all.
+            val amEnabled = dataStoreManager.amAnimatedArtwork.first() == TRUE
+            val spotifyEnabled = dataStoreManager.spotifyCanvas.first() == TRUE
+            if (!amEnabled && !spotifyEnabled) return@launch
+
+            // A downloaded song keeps its canvas on disk. Show it before asking any source, so a
+            // device with no network still gets the artwork it downloaded with the song. The
+            // pinned file belongs to one source, and that source's switch has to still be on:
+            // turning animated artwork off must not leave an old Apple Music loop on screen.
+            val pinned = canvasStore.pinned(videoId)
+            if (pinned != null && pinned.isEnabled(amEnabled, spotifyEnabled) && isDownloaded(videoId)) {
+                applyCanvas(
+                    videoId = videoId,
+                    data =
+                        CanvasResult(
+                            isVideo = pinned.isVideo,
+                            canvasUrl = pinned.url,
+                            canvasThumbUrl = pinned.thumbUrl,
+                        ),
+                    persist = false,
+                )
+                return@launch
+            }
+
+            // Offline: pinned canvas was already shown; no source fetch can succeed.
+            if (!isNetworkAvailable()) return@launch
+
             val sources =
                 buildList {
                     if (dataStoreManager.amAnimatedArtwork.first() == TRUE) {
@@ -1541,6 +1567,14 @@ class SharedViewModel(
                         ?: ""
                 }
             resetLyricsVoteState()
+            showSavedLyricsFirst(song, duration)
+            // Offline: saved lyrics are already shown; the provider fetch can only time out.
+            if (!isNetworkAvailable()) {
+                if (_nowPlayingScreenData.value.lyricsData == null) {
+                    _nowPlayingScreenData.update { it.copy(lyricsNotFound = true) }
+                }
+                return
+            }
             val lyricsProvider = dataStoreManager.lyricsProvider.first()
             when (lyricsProvider) {
                 DataStoreManager.SIMPMUSIC -> {

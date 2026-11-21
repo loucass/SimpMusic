@@ -27,6 +27,7 @@ import com.maxrave.domain.repository.SongRepository
 import com.maxrave.domain.utils.LocalResource
 import com.maxrave.domain.utils.Resource
 import com.maxrave.domain.utils.isRadioPlaylistId
+import com.maxrave.simpmusic.expect.isNetworkAvailable
 import com.maxrave.simpmusic.ui.screen.home.analytics.monthFullNameResource
 import com.maxrave.simpmusic.ui.screen.library.LibraryDynamicPlaylistType
 import com.maxrave.simpmusic.viewModel.base.BaseViewModel
@@ -170,6 +171,7 @@ class LibraryViewModel(
             cookieJob.join()
         }
         viewModelScope.launch {
+            if (!isNetworkAvailable()) return@launch
             commonRepository.getLibraryOverview().collect { _libraryOverview.value = it }
         }
     }
@@ -191,6 +193,7 @@ class LibraryViewModel(
     }
 
     fun getRecentlyAdded() {
+        if (!isNetworkAvailable()) return
         viewModelScope.launch {
             commonRepository.getAllRecentData().collectLatest { data ->
                 val temp: MutableList<RecentlyType> = mutableListOf()
@@ -221,6 +224,7 @@ class LibraryViewModel(
     }
 
     fun getYouTubePlaylist() {
+        if (!isNetworkAvailable()) return
         _youTubePlaylist.value = LocalResource.Loading()
         viewModelScope.launch {
             playlistRepository.getLibraryPlaylist().collect { data ->
@@ -230,6 +234,7 @@ class LibraryViewModel(
     }
 
     fun getYouTubeMixedForYou() {
+        if (!isNetworkAvailable()) return
         _youTubeMixForYou.value = LocalResource.Loading()
         viewModelScope.launch {
             playlistRepository.getMixedForYou().collect { data ->

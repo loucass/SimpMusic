@@ -1387,7 +1387,7 @@ class SettingsViewModel(
     fun backup(uri: Uri) {
         viewModelScope.launch {
             _backupProgress.value = RestoreProgress.Started(backupInProgress)
-            runCatching {
+            runCatching<Unit> {
                 withContext(Dispatchers.IO) {
                     backupNative(commonRepository, uri, backupDownloaded.value, progressCallback = { progress: RestoreProgress ->
                         _backupProgress.value = progress
@@ -1406,7 +1406,7 @@ class SettingsViewModel(
         viewModelScope.launch {
             _restoreProgress.value = RestoreProgress.Started(restoreInProgress)
             withContext(Dispatchers.IO) {
-                runCatching {
+                runCatching<Unit> {
                     // The restored database replaces everything the sync log and the other device
                     // know about; pairing again starts both from it. A failure here must not stop the restore.
                     runCatching { librarySyncRepository.unpairAll() }

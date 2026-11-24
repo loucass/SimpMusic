@@ -1387,15 +1387,14 @@ class SettingsViewModel(
     fun backup(uri: Uri) {
         viewModelScope.launch {
             _backupProgress.value = RestoreProgress.Started(backupInProgress)
-            runCatching<Unit> {
+            try {
                 withContext(Dispatchers.IO) {
                     backupNative(commonRepository, uri, backupDownloaded.value, progressCallback = { progress: RestoreProgress ->
                         _backupProgress.value = progress
                     })
                 }
-            }.onSuccess {
                 _backupProgress.value = RestoreProgress.Completed(backupCreateSuccess)
-            }.onFailure { e ->
+            } catch (e: Exception) {
                 Logger.e(tag, "Backup failed", e)
                 _backupProgress.value = RestoreProgress.Failed(backupCreateFailed)
             }
@@ -1406,19 +1405,21 @@ class SettingsViewModel(
         viewModelScope.launch {
             _restoreProgress.value = RestoreProgress.Started(restoreInProgress)
             withContext(Dispatchers.IO) {
-                runCatching<Unit> {
+                try {
                     // The restored database replaces everything the sync log and the other device
                     // know about; pairing again starts both from it. A failure here must not stop the restore.
-                    runCatching<Unit> { librarySyncRepository.unpairAll() }
-                        .onFailure { Logger.e(tag, "library sync: unpair before restore failed", it) }
+                    try {
+                        librarySyncRepository.unpairAll()
+                    } catch (e: Exception) {
+                        Logger.e(tag, "library sync: unpair before restore failed", e)
+                    }
                     restoreNative(commonRepository, uri, backupDownloaded.value, progressCallback = { progress: RestoreProgress ->
                         // Update progress from platform-specific restore
                         _restoreProgress.value = progress
                     })
-                }.onSuccess {
                     _restoreProgress.value = RestoreProgress.Completed(restoreSuccess)
                     getData()
-                }.onFailure { e ->
+                } catch (e: Exception) {
                     Logger.e(tag, "Restore failed", e)
                     _restoreProgress.value = RestoreProgress.Failed(restoreFailed)
                 }

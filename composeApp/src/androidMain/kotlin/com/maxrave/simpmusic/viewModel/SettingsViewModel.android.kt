@@ -59,6 +59,7 @@ actual suspend fun calculateDataFraction(cacheRepository: CacheRepository): Sett
         val otherApp = simpMusicSize.let { usedSpace.minus(it) - thumbSize }
         val databaseSize =
             simpMusicSize - playerCache.bytesToMB() - downloadCache.bytesToMB() - canvasCache.bytesToMB()
+        val totalByte = usedSpace + freeSpace
         if (totalByte ==
             freeSpace + otherApp + simpMusicSize + thumbSize
         ) {

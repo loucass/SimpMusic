@@ -16,6 +16,7 @@ import com.maxrave.common.DB_NAME
 import com.maxrave.common.DOWNLOAD_EXOPLAYER_FOLDER
 import com.maxrave.common.EXOPLAYER_DB_NAME
 import com.maxrave.common.SETTINGS_FILENAME
+import androidx.room.Room
 import com.maxrave.data.db.MusicDatabase
 import com.maxrave.domain.repository.CacheRepository
 import com.maxrave.domain.repository.CommonRepository

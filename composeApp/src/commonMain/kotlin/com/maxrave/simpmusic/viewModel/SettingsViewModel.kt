@@ -54,7 +54,12 @@ import kotlinx.coroutines.withContext
 import org.koin.core.component.inject
 import org.simpmusic.lastfm.isLastfmAvailable
 import org.jetbrains.compose.resources.getString as formatString
-import simpmusic.composeapp.generated.resources.Res
+import com.maxrave.simpmusic.viewModel.backupCreateFailed
+import com.maxrave.simpmusic.viewModel.backupCreateSuccess
+import com.maxrave.simpmusic.viewModel.backupInProgress
+import com.maxrave.simpmusic.viewModel.restoreFailed
+import com.maxrave.simpmusic.viewModel.restoreInProgress
+import com.maxrave.simpmusic.viewModel.restoreSuccess
 import simpmusic.composeapp.generated.resources.backup_create_failed
 import simpmusic.composeapp.generated.resources.backup_create_success
 import simpmusic.composeapp.generated.resources.backup_in_progress
@@ -1385,7 +1390,7 @@ class SettingsViewModel(
 
     fun backup(uri: Uri) {
         viewModelScope.launch {
-            _backupProgress.value = RestoreProgress.Started(getString(Res.string.backup_in_progress))
+            _backupProgress.value = RestoreProgress.Started(backupInProgress)
             runCatching {
                 withContext(Dispatchers.IO) {
                     backupNative(commonRepository, uri, backupDownloaded.value, progressCallback = { progress: RestoreProgress ->
@@ -1393,17 +1398,17 @@ class SettingsViewModel(
                     })
                 }
             }.onSuccess {
-                _backupProgress.value = RestoreProgress.Completed(getString(Res.string.backup_create_success))
+                _backupProgress.value = RestoreProgress.Completed(backupCreateSuccess)
             }.onFailure { e ->
                 Logger.e(tag, "Backup failed", e)
-                _backupProgress.value = RestoreProgress.Failed(getString(Res.string.backup_create_failed))
+                _backupProgress.value = RestoreProgress.Failed(backupCreateFailed)
             }
         }
     }
 
     fun restore(uri: Uri) {
         viewModelScope.launch {
-            _restoreProgress.value = RestoreProgress.Started(getString(Res.string.restore_in_progress))
+            _restoreProgress.value = RestoreProgress.Started(restoreInProgress)
             withContext(Dispatchers.IO) {
                 runCatching {
                     // The restored database replaces everything the sync log and the other device
@@ -1415,11 +1420,11 @@ class SettingsViewModel(
                         _restoreProgress.value = progress
                     })
                 }.onSuccess {
-                    _restoreProgress.value = RestoreProgress.Completed(getString(Res.string.restore_success))
+                    _restoreProgress.value = RestoreProgress.Completed(restoreSuccess)
                     getData()
                 }.onFailure { e ->
                     Logger.e(tag, "Restore failed", e)
-                    _restoreProgress.value = RestoreProgress.Failed(getString(Res.string.restore_failed))
+                    _restoreProgress.value = RestoreProgress.Failed(restoreFailed)
                 }
             }
         }

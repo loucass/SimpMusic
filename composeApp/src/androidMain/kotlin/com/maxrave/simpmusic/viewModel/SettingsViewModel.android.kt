@@ -172,9 +172,8 @@ actual suspend fun restoreNative(
             // Reopen the actual stream for restoration
             application.applicationContext.contentResolver.openInputStream(uri.toAndroidUri())?.use {
                 it.zipInputStream().use { inputStream ->
-                    var entry: ZipEntry?
                     while (true) {
-                        entry = inputStream.nextEntry()
+                        val entry: java.util.zip.ZipEntry? = inputStream.nextEntry()
                         if (entry == null) break
                         currentEntry++
                         report(RestoreProgress.Step(

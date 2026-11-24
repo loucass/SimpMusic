@@ -172,7 +172,23 @@ class LibraryViewModel(
         }
         viewModelScope.launch {
             if (!isNetworkAvailable()) return@launch
-            commonRepository.getLibraryOverview().collect { _libraryOverview.value = it }
+            // After a backup restore, the database file is replaced. Give it a moment to settle
+            // and handle any transient "database is closed" errors during the first few attempts.
+            var attempts = 0
+            while (true) {
+                try {
+                    commonRepository.getLibraryOverview().collect { _libraryOverview.value = it }
+                    break
+                } catch (e: IllegalStateException) {
+                    if (e.message?.contains("Database is closed") == true && attempts < 3) {
+                        attempts++
+                        Logger.w("LibraryViewModel", "Database not ready after restore, retrying ($attempts/3)")
+                        delay(500)
+                    } else {
+                        throw e
+                    }
+                }
+            }
         }
     }
 

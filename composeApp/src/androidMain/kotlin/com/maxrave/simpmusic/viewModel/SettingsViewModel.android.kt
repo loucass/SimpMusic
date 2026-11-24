@@ -135,7 +135,12 @@ actual suspend fun restoreNative(
                             commonRepository.databaseDaoCheckpoint()
                             commonRepository.closeDatabase()
                         }
-                        FileOutputStream(commonRepository.getDatabasePath()).use { outputStream ->
+                        // Delete the database file AND its WAL/SHM files to avoid Room corruption
+                        val dbPath = commonRepository.getDatabasePath()
+                        File(dbPath).delete()
+                        File("$dbPath-wal").delete()
+                        File("$dbPath-shm").delete()
+                        FileOutputStream(dbPath).use { outputStream ->
                             inputStream.copyTo(outputStream)
                         }
                     }

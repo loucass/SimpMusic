@@ -40,7 +40,7 @@ actual suspend fun restoreNative(
         progressCallback?.invoke(progress)
     }
 
-    report(RestoreProgress.Started(getString(Res.string.restore_in_progress)))
+    report(RestoreProgress.Started("Restore in progress"))
 
     ZipInputStream(
         FileInputStream(File(uri.toString())),
@@ -84,10 +84,10 @@ actual suspend fun restoreNative(
         if (!File(dbPath).exists()) {
             throw IllegalStateException("Database not found after restore")
         }
-        report(RestoreProgress.Completed(getString(Res.string.restore_success)))
+        report(RestoreProgress.Completed("Restore successful"))
 
         withContext(Dispatchers.Main) {
-            showToast(getString(Res.string.restore_success), ToastGravity.Bottom)
+            showToast("Restore successful", ToastGravity.Bottom)
             showToast("App will restart to apply changes", ToastGravity.Bottom)
             delay(2000)
             getData()
@@ -106,7 +106,7 @@ actual suspend fun backupNative(
         progressCallback?.invoke(progress)
     }
 
-    report(RestoreProgress.Started(getString(Res.string.backup_in_progress)))
+    report(RestoreProgress.Started("Backup in progress"))
 
     FileOutputStream(File(uri.toString())).use {
         it.buffered().zipOutputStream().use { outputStream ->
@@ -128,7 +128,7 @@ actual suspend fun backupNative(
             }
         }
     }
-    report(RestoreProgress.Completed(getString(Res.string.backup_create_success)))
+    report(RestoreProgress.Completed("Backup created successfully"))
 }
 
 actual fun getPackageName(): String = ""

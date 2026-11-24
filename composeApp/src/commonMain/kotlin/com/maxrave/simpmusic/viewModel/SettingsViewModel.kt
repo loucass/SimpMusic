@@ -1388,9 +1388,9 @@ class SettingsViewModel(
             _backupProgress.value = RestoreProgress.Started(getString(Res.string.backup_in_progress))
             runCatching {
                 withContext(Dispatchers.IO) {
-                    backupNative(commonRepository, uri, backupDownloaded.value) { progress ->
+                    backupNative(commonRepository, uri, backupDownloaded.value, progressCallback = { progress: RestoreProgress ->
                         _backupProgress.value = progress
-                    }
+                    })
                 }
             }.onSuccess {
                 _backupProgress.value = RestoreProgress.Completed(getString(Res.string.backup_create_success))
@@ -1410,10 +1410,10 @@ class SettingsViewModel(
                     // know about; pairing again starts both from it. A failure here must not stop the restore.
                     runCatching { librarySyncRepository.unpairAll() }
                         .onFailure { Logger.e(tag, "library sync: unpair before restore failed", it) }
-                    restoreNative(commonRepository, uri, backupDownloaded.value) { progress ->
+                    restoreNative(commonRepository, uri, backupDownloaded.value, progressCallback = { progress: RestoreProgress ->
                         // Update progress from platform-specific restore
                         _restoreProgress.value = progress
-                    }
+                    })
                 }.onSuccess {
                     _restoreProgress.value = RestoreProgress.Completed(getString(Res.string.restore_success))
                     getData()
@@ -2224,6 +2224,8 @@ data class SettingBasicAlertState(
     val confirm: Pair<String, () -> Unit>,
     val dismiss: String,
 )
+
+expect suspend fun calculateDataFraction(cacheRepository: CacheRepository): SettingsStorageSectionFraction?
 
 expect suspend fun restoreNative(
     commonRepository: CommonRepository,

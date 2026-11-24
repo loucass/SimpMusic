@@ -16,8 +16,6 @@ import com.maxrave.common.DB_NAME
 import com.maxrave.common.DOWNLOAD_EXOPLAYER_FOLDER
 import com.maxrave.common.EXOPLAYER_DB_NAME
 import com.maxrave.common.SETTINGS_FILENAME
-import androidx.room.Room
-import com.maxrave.data.db.MusicDatabase
 import com.maxrave.domain.repository.CacheRepository
 import com.maxrave.domain.repository.CommonRepository
 import com.maxrave.logger.Logger
@@ -159,21 +157,22 @@ actual suspend fun restoreNative(
                             var attempts = 0
                             while (attempts < 5) {
                                 try {
-                                    val testDb = Room.databaseBuilder(
-                                        application,
-                                        MusicDatabase::class.java,
-                                        DB_NAME
-                                    ).build()
-                                    testDb.openHelper.writableDatabase.close()
-                                    testDb.close()
-                                    Logger.d("BackupRestore", "Database verification successful")
-                                    break
+                                    // Use the existing repository to verify database is accessible
+                                    commonRepository.getDatabasePath().let { dbPath ->
+                                        if (File(dbPath).exists()) {
+                                            // Try a simple query to verify database is accessible
+                                            commonRepository.databaseDaoCheckpoint()
+                                            Logger.d("BackupRestore", "Database verification successful")
+                                            return@runBlocking
+                                        }
+                                    }
                                 } catch (e: Exception) {
                                     attempts++
                                     Logger.w("BackupRestore", "Database not ready, retrying ($attempts/5): ${e.message}")
                                     Thread.sleep(200)
                                 }
                             }
+                            Logger.w("BackupRestore", "Database verification timed out after 5 attempts")
                         }
                     }
 

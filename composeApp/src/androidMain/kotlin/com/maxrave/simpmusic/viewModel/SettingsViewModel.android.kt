@@ -159,9 +159,9 @@ actual suspend fun restoreNative(
             // First pass: count total entries for progress
             val entries = mutableListOf<ZipEntry>()
             val tempStream = application.applicationContext.contentResolver.openInputStream(uri.toAndroidUri())?.zipInputStream()
-            var tempEntry: ZipEntry?
-            tempStream?.let {
-                tempEntry = it.nextEntry()
+            var tempEntry: ZipEntry? = null
+            if (tempStream != null) {
+                tempEntry = tempStream.nextEntry()
                 while (tempEntry != null) {
                     if (tempEntry.name == DB_NAME || tempEntry.name == EXOPLAYER_DB_NAME ||
                         tempEntry.name.startsWith("$DOWNLOAD_EXOPLAYER_FOLDER/") ||
@@ -170,7 +170,7 @@ actual suspend fun restoreNative(
                         tempEntry.name == "$SETTINGS_FILENAME.preferences_pb") {
                         entries.add(tempEntry)
                     }
-                    tempEntry = it.nextEntry()
+                    tempEntry = tempStream.nextEntry()
                 }
             }
             tempStream?.close()
@@ -182,7 +182,7 @@ actual suspend fun restoreNative(
                 it.zipInputStream().use { inputStream ->
                     var entry: ZipEntry?
                     entry = try {
-                        inputStream.nextEntry
+                        inputStream.nextEntry()
                     } catch (e: Exception) {
                         null
                     }

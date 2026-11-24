@@ -2225,19 +2225,6 @@ data class SettingBasicAlertState(
     val dismiss: String,
 )
 
-expect suspend fun calculateDataFraction(cacheRepository: CacheRepository): SettingsStorageSectionFraction?
-
-/**
- * Restore progress reported by platform-specific restore implementation
- */
-sealed interface RestoreProgress {
-    data class Started(val message: String) : RestoreProgress
-    data class Step(val message: String, val current: Int, val total: Int) : RestoreProgress
-    data class Completed(val message: String) : RestoreProgress
-    data class Failed(val message: String) : RestoreProgress
-    object Idle : RestoreProgress
-}
-
 expect suspend fun restoreNative(
     commonRepository: CommonRepository,
     uri: Uri,

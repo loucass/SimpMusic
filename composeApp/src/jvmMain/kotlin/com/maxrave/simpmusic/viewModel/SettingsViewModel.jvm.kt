@@ -7,6 +7,7 @@ import com.maxrave.data.io.getHomeFolderPath
 import com.maxrave.domain.repository.CacheRepository
 import com.maxrave.domain.repository.CommonRepository
 import com.maxrave.logger.Logger
+import com.maxrave.simpmusic.viewModel.RestoreProgress
 import com.maxrave.simpmusic.extension.zipOutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay

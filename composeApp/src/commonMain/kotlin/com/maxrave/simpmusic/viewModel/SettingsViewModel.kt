@@ -203,6 +203,23 @@ class SettingsViewModel(
     private var _backupDownloaded: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val backupDownloaded: StateFlow<Boolean> = _backupDownloaded
 
+    /**
+     * Restore progress state - observed by UI to show progress indicator during restore
+     */
+    sealed interface RestoreProgress {
+        data class Started(val message: String) : RestoreProgress
+        data class Step(val message: String, val current: Int, val total: Int) : RestoreProgress
+        data class Completed(val message: String) : RestoreProgress
+        data class Failed(val message: String) : RestoreProgress
+        object Idle : RestoreProgress
+    }
+
+    private val _restoreProgress = MutableStateFlow<RestoreProgress>(RestoreProgress.Idle)
+    val restoreProgress: StateFlow<RestoreProgress> = _restoreProgress
+
+    private val _backupProgress = MutableStateFlow<RestoreProgress>(RestoreProgress.Idle)
+    val backupProgress: StateFlow<RestoreProgress> = _backupProgress
+
     private var _enableLiquidGlass: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val enableLiquidGlass: StateFlow<Boolean> = _enableLiquidGlass
 
@@ -1379,41 +1396,41 @@ class SettingsViewModel(
 
     fun backup(uri: Uri) {
         viewModelScope.launch {
+            _backupProgress.value = RestoreProgress.Started(getString(Res.string.backup_in_progress))
             runCatching {
-                makeToast(getString(Res.string.backup_in_progress))
                 withContext(Dispatchers.IO) {
-                    backupNative(commonRepository, uri, backupDownloaded.value)
+                    backupNative(commonRepository, uri, backupDownloaded.value) { progress ->
+                        _backupProgress.value = progress
+                    }
                 }
             }.onSuccess {
-                withContext(Dispatchers.Main) {
-                    makeToast(getString(Res.string.backup_create_success))
-                }
-            }.onFailure {
-                withContext(Dispatchers.Main) {
-                    it.printStackTrace()
-                    makeToast(getString(Res.string.backup_create_failed))
-                }
+                _backupProgress.value = RestoreProgress.Completed(getString(Res.string.backup_create_success))
+            }.onFailure { e ->
+                Logger.e(tag, "Backup failed", e)
+                _backupProgress.value = RestoreProgress.Failed(getString(Res.string.backup_create_failed))
             }
         }
     }
 
     fun restore(uri: Uri) {
         viewModelScope.launch {
-            makeToast(getString(Res.string.restore_in_progress))
+            _restoreProgress.value = RestoreProgress.Started(getString(Res.string.restore_in_progress))
             withContext(Dispatchers.IO) {
                 runCatching {
                     // The restored database replaces everything the sync log and the other device
                     // know about; pairing again starts both from it. A failure here must not stop the restore.
                     runCatching { librarySyncRepository.unpairAll() }
                         .onFailure { Logger.e(tag, "library sync: unpair before restore failed", it) }
-                    restoreNative(commonRepository, uri) {
-                        getData()
+                    restoreNative(commonRepository, uri, backupDownloaded.value) { progress ->
+                        // Update progress from platform-specific restore
+                        _restoreProgress.value = progress
                     }
-                }.onFailure {
-                    withContext(Dispatchers.Main) {
-                        it.printStackTrace()
-                        makeToast(getString(Res.string.restore_failed))
-                    }
+                }.onSuccess {
+                    _restoreProgress.value = RestoreProgress.Completed(getString(Res.string.restore_success))
+                    getData()
+                }.onFailure { e ->
+                    Logger.e(tag, "Restore failed", e)
+                    _restoreProgress.value = RestoreProgress.Failed(getString(Res.string.restore_failed))
                 }
             }
         }
@@ -2221,9 +2238,22 @@ data class SettingBasicAlertState(
 
 expect suspend fun calculateDataFraction(cacheRepository: CacheRepository): SettingsStorageSectionFraction?
 
+/**
+ * Restore progress reported by platform-specific restore implementation
+ */
+sealed interface RestoreProgress {
+    data class Started(val message: String) : RestoreProgress
+    data class Step(val message: String, val current: Int, val total: Int) : RestoreProgress
+    data class Completed(val message: String) : RestoreProgress
+    data class Failed(val message: String) : RestoreProgress
+    object Idle : RestoreProgress
+}
+
 expect suspend fun restoreNative(
     commonRepository: CommonRepository,
     uri: Uri,
+    backupDownloaded: Boolean,
+    progressCallback: ((RestoreProgress) -> Unit)? = null,
     getData: () -> Unit = {},
 )
 
@@ -2234,6 +2264,7 @@ expect suspend fun backupNative(
     commonRepository: CommonRepository,
     uri: Uri,
     backupDownloaded: Boolean,
+    progressCallback: ((RestoreProgress) -> Unit)? = null,
 )
 
 expect fun getPackageName(): String

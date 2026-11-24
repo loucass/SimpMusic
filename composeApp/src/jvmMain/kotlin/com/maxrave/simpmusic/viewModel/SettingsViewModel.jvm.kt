@@ -29,11 +29,30 @@ actual suspend fun calculateDataFraction(cacheRepository: CacheRepository): Sett
 
 actual suspend fun readPickedFile(uri: Uri): ByteArray = File(uri.toString()).readBytes()
 
+/**
+ * Restore progress reported by platform-specific restore implementation
+ */
+sealed interface RestoreProgress {
+    data class Started(val message: String) : RestoreProgress
+    data class Step(val message: String, val current: Int, val total: Int) : RestoreProgress
+    data class Completed(val message: String) : RestoreProgress
+    data class Failed(val message: String) : RestoreProgress
+    object Idle : RestoreProgress
+}
+
 actual suspend fun restoreNative(
     commonRepository: CommonRepository,
     uri: Uri,
+    backupDownloaded: Boolean,
+    progressCallback: ((RestoreProgress) -> Unit)? = null,
     getData: () -> Unit,
 ) {
+    fun report(progress: RestoreProgress) {
+        progressCallback?.invoke(progress)
+    }
+
+    report(RestoreProgress.Started(getString(Res.string.restore_in_progress)))
+
     ZipInputStream(
         FileInputStream(File(uri.toString())),
     ).use { inputStream ->
@@ -55,6 +74,7 @@ actual suspend fun restoreNative(
                 }
 
                 entry.name == DB_NAME -> {
+                    report(RestoreProgress.Step("Restoring database...", 1, 2))
                     runBlocking(Dispatchers.IO) {
                         commonRepository.databaseDaoCheckpoint()
                         commonRepository.closeDatabase()
@@ -63,13 +83,25 @@ actual suspend fun restoreNative(
                         inputStream.copyTo(outputStream)
                     }
                 }
+
+                else -> {
+                    Logger.d("BackupRestore", "Unhandled entry: ${entry.name}")
+                }
             }
             entry = inputStream.nextEntry
         }
+        report(RestoreProgress.Step("Verifying database...", 2, 2))
+        val dbPath = commonRepository.getDatabasePath()
+        if (!File(dbPath).exists()) {
+            throw IllegalStateException("Database not found after restore")
+        }
+        report(RestoreProgress.Completed(getString(Res.string.restore_success)))
+
         withContext(Dispatchers.Main) {
             showToast(getString(Res.string.restore_success), ToastGravity.Bottom)
             showToast("App will restart to apply changes", ToastGravity.Bottom)
             delay(2000)
+            getData()
             exitProcess(0)
         }
     }
@@ -79,9 +111,17 @@ actual suspend fun backupNative(
     commonRepository: CommonRepository,
     uri: Uri,
     backupDownloaded: Boolean,
+    progressCallback: ((RestoreProgress) -> Unit)? = null,
 ) {
+    fun report(progress: RestoreProgress) {
+        progressCallback?.invoke(progress)
+    }
+
+    report(RestoreProgress.Started(getString(Res.string.backup_in_progress)))
+
     FileOutputStream(File(uri.toString())).use {
         it.buffered().zipOutputStream().use { outputStream ->
+            report(RestoreProgress.Step("Backing up settings...", 1, 2))
             File(getHomeFolderPath(listOf(".simpmusic")), "$SETTINGS_FILENAME.preferences_pb")
                 .inputStream()
                 .buffered()
@@ -89,6 +129,7 @@ actual suspend fun backupNative(
                     outputStream.putNextEntry(ZipEntry("$SETTINGS_FILENAME.preferences_pb"))
                     inputStream.copyTo(outputStream)
                 }
+            report(RestoreProgress.Step("Backing up database...", 2, 2))
             runBlocking(Dispatchers.IO) {
                 commonRepository.databaseDaoCheckpoint()
             }
@@ -98,6 +139,7 @@ actual suspend fun backupNative(
             }
         }
     }
+    report(RestoreProgress.Completed(getString(Res.string.backup_create_success)))
 }
 
 actual fun getPackageName(): String = ""

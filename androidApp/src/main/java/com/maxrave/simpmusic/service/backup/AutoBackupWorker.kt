@@ -10,6 +10,7 @@ import com.maxrave.common.DB_NAME
 import com.maxrave.common.DOWNLOAD_EXOPLAYER_FOLDER
 import com.maxrave.common.EXOPLAYER_DB_NAME
 import com.maxrave.common.SETTINGS_FILENAME
+import com.maxrave.domain.mediaservice.handler.DownloadHandler
 import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.domain.repository.CommonRepository
 import com.maxrave.logger.Logger
@@ -83,6 +84,12 @@ class AutoBackupWorker(
     private suspend fun createBackupFile(backupDownloaded: Boolean): File {
         val tempFile = File(context.cacheDir, "temp_backup.zip")
 
+        // Shutdown DownloadManager before backup if backing up downloaded data
+        if (backupDownloaded) {
+            val downloadHandler = getKoin().get<DownloadHandler>()
+            downloadHandler.shutdownForBackup()
+        }
+
         FileOutputStream(tempFile).buffered().use { bufferedOutput ->
             ZipOutputStream(bufferedOutput).use { zipOutputStream ->
                 // Backup DataStore preferences
@@ -135,6 +142,12 @@ class AutoBackupWorker(
                     }
                 }
             }
+        }
+
+        // Reinitialize DownloadManager after backup
+        if (backupDownloaded) {
+            val downloadHandler = getKoin().get<DownloadHandler>()
+            downloadHandler.reinitializeAfterRestore()
         }
 
         return tempFile

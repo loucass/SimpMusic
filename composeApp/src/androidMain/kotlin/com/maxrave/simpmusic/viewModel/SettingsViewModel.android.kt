@@ -159,7 +159,7 @@ actual suspend fun restoreNative(
             // First pass: count total entries for progress
             val entries = mutableListOf<ZipEntry>()
             val tempStream = application.applicationContext.contentResolver.openInputStream(uri.toAndroidUri())?.zipInputStream()
-            var tempEntry: ZipEntry? = tempStream?.nextEntry()
+            var tempEntry: ZipEntry? = tempStream?.let { it.nextEntry() }
             while (tempEntry != null) {
                 if (tempEntry.name == DB_NAME || tempEntry.name == EXOPLAYER_DB_NAME ||
                     tempEntry.name.startsWith("$DOWNLOAD_EXOPLAYER_FOLDER/") ||
@@ -168,7 +168,7 @@ actual suspend fun restoreNative(
                     tempEntry.name == "$SETTINGS_FILENAME.preferences_pb") {
                     entries.add(tempEntry)
                 }
-                tempEntry = tempStream?.nextEntry()
+                tempEntry = tempStream?.let { it.nextEntry() }
             }
             tempStream?.close()
             val totalEntries = entries.size
@@ -291,7 +291,7 @@ actual suspend fun restoreNative(
                                 Logger.d("BackupRestore", "Unhandled entry: ${entry.name}")
                             }
                         }
-                        entry = inputStream.nextEntry
+                        entry = inputStream.nextEntry()
                     }
                 }
             }

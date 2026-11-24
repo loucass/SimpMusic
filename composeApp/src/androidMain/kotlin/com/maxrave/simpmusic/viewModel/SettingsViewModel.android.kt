@@ -159,7 +159,7 @@ actual suspend fun restoreNative(
             // First pass: count total entries for progress
             val entries = mutableListOf<ZipEntry>()
             val tempStream = application.applicationContext.contentResolver.openInputStream(uri.toAndroidUri())?.zipInputStream()
-            var tempEntry = tempStream?.nextEntry()
+            var tempEntry: ZipEntry? = tempStream?.nextEntry()
             while (tempEntry != null) {
                 if (tempEntry.name == DB_NAME || tempEntry.name == EXOPLAYER_DB_NAME ||
                     tempEntry.name.startsWith("$DOWNLOAD_EXOPLAYER_FOLDER/") ||
@@ -177,7 +177,7 @@ actual suspend fun restoreNative(
             // Reopen the actual stream for restoration
             application.applicationContext.contentResolver.openInputStream(uri.toAndroidUri())?.use {
                 it.zipInputStream().use { inputStream ->
-                    var entry =
+                    var entry: ZipEntry? =
                         try {
                             inputStream.nextEntry
                         } catch (e: Exception) {
@@ -324,9 +324,9 @@ actual suspend fun restoreNative(
     }
 
     // Final debug check
-    val downloadFolder = application.filesDir / DOWNLOAD_EXOPLAYER_FOLDER
+    val downloadFolderDebug = application.filesDir / DOWNLOAD_EXOPLAYER_FOLDER
     Logger.d("BackupRestore", "=== RESTORE: Download folder contents AFTER RESTORE ===")
-    debugFolderContents(downloadFolder)
+    debugFolderContents(downloadFolderDebug)
 
     val artworkFolder = application.filesDir / "artwork"
     Logger.d("BackupRestore", "=== RESTORE: Artwork folder contents AFTER RESTORE ===")

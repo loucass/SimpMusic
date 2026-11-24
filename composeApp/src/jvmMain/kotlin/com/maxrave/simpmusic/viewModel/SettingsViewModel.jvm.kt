@@ -46,8 +46,7 @@ actual suspend fun restoreNative(
     ZipInputStream(
         FileInputStream(File(uri.toString())),
     ).use { inputStream ->
-        var entry: ZipEntry?
-        entry = try {
+        var entry: ZipEntry? = try {
             inputStream.nextEntry()
         } catch (e: Exception) {
             null
@@ -78,7 +77,11 @@ actual suspend fun restoreNative(
                     Logger.d("BackupRestore", "Unhandled entry: ${entry.name}")
                 }
             }
-            entry = inputStream.nextEntry()
+            entry = try {
+                inputStream.nextEntry()
+            } catch (e: Exception) {
+                null
+            }
         }
         report(RestoreProgress.Step("Verifying database...", 2, 2))
         val dbPath = commonRepository.getDatabasePath()

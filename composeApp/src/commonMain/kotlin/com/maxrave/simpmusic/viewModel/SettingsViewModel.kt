@@ -54,15 +54,13 @@ import kotlinx.coroutines.withContext
 import org.koin.core.component.inject
 import org.simpmusic.lastfm.isLastfmAvailable
 import org.jetbrains.compose.resources.getString as formatString
+import simpmusic.composeapp.generated.resources.Res
 import com.maxrave.simpmusic.viewModel.backupCreateFailed
 import com.maxrave.simpmusic.viewModel.backupCreateSuccess
 import com.maxrave.simpmusic.viewModel.backupInProgress
 import com.maxrave.simpmusic.viewModel.restoreFailed
 import com.maxrave.simpmusic.viewModel.restoreInProgress
 import com.maxrave.simpmusic.viewModel.restoreSuccess
-import simpmusic.composeapp.generated.resources.backup_create_failed
-import simpmusic.composeapp.generated.resources.backup_create_success
-import simpmusic.composeapp.generated.resources.backup_in_progress
 import simpmusic.composeapp.generated.resources.cancel
 import simpmusic.composeapp.generated.resources.clear_canvas_cache
 import simpmusic.composeapp.generated.resources.clear_listening_history
@@ -73,8 +71,6 @@ import simpmusic.composeapp.generated.resources.clear_thumbnail_cache
 import simpmusic.composeapp.generated.resources.downloading_liked_songs
 import simpmusic.composeapp.generated.resources.error
 import simpmusic.composeapp.generated.resources.log_out_confirm_message
-import simpmusic.composeapp.generated.resources.restore_failed
-import simpmusic.composeapp.generated.resources.restore_in_progress
 import simpmusic.composeapp.generated.resources.romanization_japanese_dict_failed
 import simpmusic.composeapp.generated.resources.romanization_japanese_dict_ready
 import simpmusic.composeapp.generated.resources.smart_downloads_downloading

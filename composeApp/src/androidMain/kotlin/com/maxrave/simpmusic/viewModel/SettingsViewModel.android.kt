@@ -159,16 +159,19 @@ actual suspend fun restoreNative(
             // First pass: count total entries for progress
             val entries = mutableListOf<ZipEntry>()
             val tempStream = application.applicationContext.contentResolver.openInputStream(uri.toAndroidUri())?.zipInputStream()
-            var tempEntry: ZipEntry? = tempStream?.let { it.nextEntry() }
-            while (tempEntry != null) {
-                if (tempEntry.name == DB_NAME || tempEntry.name == EXOPLAYER_DB_NAME ||
-                    tempEntry.name.startsWith("$DOWNLOAD_EXOPLAYER_FOLDER/") ||
-                    tempEntry.name.startsWith("artwork/") ||
-                    tempEntry.name.startsWith("$CANVAS_DIRECTORY/") ||
-                    tempEntry.name == "$SETTINGS_FILENAME.preferences_pb") {
-                    entries.add(tempEntry)
+            var tempEntry: ZipEntry?
+            tempStream?.let {
+                tempEntry = it.nextEntry()
+                while (tempEntry != null) {
+                    if (tempEntry.name == DB_NAME || tempEntry.name == EXOPLAYER_DB_NAME ||
+                        tempEntry.name.startsWith("$DOWNLOAD_EXOPLAYER_FOLDER/") ||
+                        tempEntry.name.startsWith("artwork/") ||
+                        tempEntry.name.startsWith("$CANVAS_DIRECTORY/") ||
+                        tempEntry.name == "$SETTINGS_FILENAME.preferences_pb") {
+                        entries.add(tempEntry)
+                    }
+                    tempEntry = it.nextEntry()
                 }
-                tempEntry = tempStream?.let { it.nextEntry() }
             }
             tempStream?.close()
             val totalEntries = entries.size
@@ -177,12 +180,12 @@ actual suspend fun restoreNative(
             // Reopen the actual stream for restoration
             application.applicationContext.contentResolver.openInputStream(uri.toAndroidUri())?.use {
                 it.zipInputStream().use { inputStream ->
-                    var entry: ZipEntry? =
-                        try {
-                            inputStream.nextEntry
-                        } catch (e: Exception) {
-                            null
-                        }
+                    var entry: ZipEntry?
+                    entry = try {
+                        inputStream.nextEntry
+                    } catch (e: Exception) {
+                        null
+                    }
 
                     var downloadFolderCleared = false
                     var artworkFolderCleared = false
@@ -291,7 +294,7 @@ actual suspend fun restoreNative(
                                 Logger.d("BackupRestore", "Unhandled entry: ${entry.name}")
                             }
                         }
-                        entry = inputStream.nextEntry()
+                        entry = inputStream.nextEntry()()
                     }
                 }
             }

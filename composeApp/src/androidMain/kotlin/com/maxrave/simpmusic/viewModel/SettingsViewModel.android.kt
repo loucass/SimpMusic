@@ -16,6 +16,7 @@ import com.maxrave.common.DB_NAME
 import com.maxrave.common.DOWNLOAD_EXOPLAYER_FOLDER
 import com.maxrave.common.EXOPLAYER_DB_NAME
 import com.maxrave.common.SETTINGS_FILENAME
+import com.maxrave.data.db.MusicDatabase
 import com.maxrave.domain.repository.CacheRepository
 import com.maxrave.domain.repository.CommonRepository
 import com.maxrave.logger.Logger
@@ -142,6 +143,36 @@ actual suspend fun restoreNative(
                         File("$dbPath-shm").delete()
                         FileOutputStream(dbPath).use { outputStream ->
                             inputStream.copyTo(outputStream)
+                        }
+                        // Force filesystem sync to ensure database is fully written before restart
+                        runBlocking(Dispatchers.IO) {
+                            File(dbPath).absoluteFile.parentFile?.let { dir ->
+                                val fos = FileOutputStream(File(dir, ".sync"))
+                                fos.getFD().sync()
+                                fos.close()
+                                File(dir, ".sync").delete()
+                            }
+                        }
+                        // Verify database is accessible before allowing restart
+                        runBlocking(Dispatchers.IO) {
+                            var attempts = 0
+                            while (attempts < 5) {
+                                try {
+                                    val testDb = Room.databaseBuilder(
+                                        application,
+                                        MusicDatabase::class.java,
+                                        DB_NAME
+                                    ).build()
+                                    testDb.openHelper.writableDatabase.close()
+                                    testDb.close()
+                                    Logger.d("BackupRestore", "Database verification successful")
+                                    break
+                                } catch (e: Exception) {
+                                    attempts++
+                                    Logger.w("BackupRestore", "Database not ready, retrying ($attempts/5): ${e.message}")
+                                    Thread.sleep(200)
+                                }
+                            }
                         }
                     }
 

@@ -144,13 +144,6 @@ actual suspend fun restoreNative(
     // PHASE 2: Extract and restore all files
     application.applicationContext.contentResolver.openInputStream(uri.toAndroidUri())?.use {
         it.zipInputStream().use { inputStream ->
-            var entry: ZipEntry?
-            entry = try {
-                inputStream.nextEntry()
-            } catch (e: Exception) {
-                null
-            }
-
             var downloadFolderCleared = false
             var artworkFolderCleared = false
             var canvasFolderCleared = false
@@ -179,13 +172,10 @@ actual suspend fun restoreNative(
             // Reopen the actual stream for restoration
             application.applicationContext.contentResolver.openInputStream(uri.toAndroidUri())?.use {
                 it.zipInputStream().use { inputStream ->
-                    entry = try {
-                        inputStream.nextEntry()
-                    } catch (e: Exception) {
-                        null
-                    }
-
-                    while (entry != null) {
+                    var entry: ZipEntry?
+                    while (true) {
+                        entry = inputStream.nextEntry()
+                        if (entry == null) break
                         currentEntry++
                         report(RestoreProgress.Step(
                             "Restoring ${entry.name} ($currentEntry/$totalEntries)",
@@ -287,7 +277,6 @@ actual suspend fun restoreNative(
                                 Logger.d("BackupRestore", "Unhandled entry: ${entry.name}")
                             }
                         }
-                        entry = inputStream.nextEntry()
                     }
                 }
             }

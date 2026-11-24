@@ -8,6 +8,8 @@ import android.os.Build
 import android.os.storage.StorageManager
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
+import androidx.room.Room
+import androidx.room.RoomDatabase
 import coil3.imageLoader
 import com.eygraber.uri.Uri
 import com.eygraber.uri.toAndroidUri
@@ -94,12 +96,6 @@ actual suspend fun readPickedFile(uri: Uri): ByteArray {
 }
 
 /**
- * Restore progress reported by platform-specific restore implementation
- */
-sealed interface RestoreProgress {
-    
-
-/**
  * Shuts down the DownloadManager gracefully so its database can be safely backed up.
  */
 private suspend fun shutdownDownloadManagerForBackup(application: Context) {
@@ -149,7 +145,7 @@ actual suspend fun restoreNative(
         progressCallback?.invoke(progress)
     }
 
-    report(RestoreProgress.Started(getString(Res.string.restore_in_progress)))
+    report(RestoreProgress.Started(restoreInProgress))
 
     // PHASE 0: Stop media service and shutdown DownloadManager
     report(RestoreProgress.Step("Stopping media services...", 0, 7))
@@ -345,7 +341,7 @@ actual suspend fun restoreNative(
     val downloadHandler = getKoin().get<DownloadHandler>()
     val downloadFolder = application.filesDir / DOWNLOAD_EXOPLAYER_FOLDER
     if (downloadFolder.exists()) {
-        val exoDownloads = downloadHandler.downloads.first()
+        val exoDownloads = downloadHandler.downloads.value
         var verified = 0
         var failed = 0
         for ((videoId, pair) in exoDownloads) {
@@ -364,6 +360,7 @@ actual suspend fun restoreNative(
                     Logger.w("BackupRestore", "Download missing for $videoId, marked as not downloaded")
                 }
             }
+        }
         Logger.i("BackupRestore", "Download verification: $verified verified, $failed missing")
     }
 
@@ -380,11 +377,11 @@ actual suspend fun restoreNative(
     Logger.d("BackupRestore", "=== RESTORE: Canvas folder contents AFTER RESTORE ===")
     debugFolderContents(canvasFolder)
 
-    report(RestoreProgress.Completed(getString(Res.string.restore_success)))
+    report(RestoreProgress.Completed(restoreSuccess))
 
     // Graceful restart
     withContext(Dispatchers.Main) {
-        showToast(getString(Res.string.restore_success), ToastGravity.Bottom)
+        showToast(restoreSuccess, ToastGravity.Bottom)
         getData()
         val ctx = application.applicationContext
         val pm: PackageManager = ctx.packageManager
@@ -407,7 +404,7 @@ actual suspend fun backupNative(
         progressCallback?.invoke(progress)
     }
 
-    report(RestoreProgress.Started(getString(Res.string.backup_in_progress)))
+    report(RestoreProgress.Started(backupInProgress))
 
     // PHASE 0: Shutdown DownloadManager if backing up downloads
     if (backupDownloaded) {
@@ -469,7 +466,7 @@ actual suspend fun backupNative(
             }
         }
     }
-    report(RestoreProgress.Completed(getString(Res.string.backup_create_success)))
+    report(RestoreProgress.Completed(backupCreateSuccess))
 }
 
 private fun backupFolder(

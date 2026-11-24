@@ -1409,7 +1409,7 @@ class SettingsViewModel(
                 runCatching<Unit> {
                     // The restored database replaces everything the sync log and the other device
                     // know about; pairing again starts both from it. A failure here must not stop the restore.
-                    runCatching { librarySyncRepository.unpairAll() }
+                    runCatching<Unit> { librarySyncRepository.unpairAll() }
                         .onFailure { Logger.e(tag, "library sync: unpair before restore failed", it) }
                     restoreNative(commonRepository, uri, backupDownloaded.value, progressCallback = { progress: RestoreProgress ->
                         // Update progress from platform-specific restore

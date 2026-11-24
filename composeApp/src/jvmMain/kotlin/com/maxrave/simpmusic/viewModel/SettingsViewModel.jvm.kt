@@ -29,22 +29,11 @@ actual suspend fun calculateDataFraction(cacheRepository: CacheRepository): Sett
 
 actual suspend fun readPickedFile(uri: Uri): ByteArray = File(uri.toString()).readBytes()
 
-/**
- * Restore progress reported by platform-specific restore implementation
- */
-sealed interface RestoreProgress {
-    data class Started(val message: String) : RestoreProgress
-    data class Step(val message: String, val current: Int, val total: Int) : RestoreProgress
-    data class Completed(val message: String) : RestoreProgress
-    data class Failed(val message: String) : RestoreProgress
-    object Idle : RestoreProgress
-}
-
 actual suspend fun restoreNative(
     commonRepository: CommonRepository,
     uri: Uri,
     backupDownloaded: Boolean,
-    progressCallback: ((RestoreProgress) -> Unit)? = null,
+    progressCallback: ((RestoreProgress) -> Unit)?,
     getData: () -> Unit,
 ) {
     fun report(progress: RestoreProgress) {
@@ -111,7 +100,7 @@ actual suspend fun backupNative(
     commonRepository: CommonRepository,
     uri: Uri,
     backupDownloaded: Boolean,
-    progressCallback: ((RestoreProgress) -> Unit)? = null,
+    progressCallback: ((RestoreProgress) -> Unit)?,
 ) {
     fun report(progress: RestoreProgress) {
         progressCallback?.invoke(progress)

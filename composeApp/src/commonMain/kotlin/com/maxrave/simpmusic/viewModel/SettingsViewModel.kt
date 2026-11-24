@@ -203,17 +203,6 @@ class SettingsViewModel(
     private var _backupDownloaded: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val backupDownloaded: StateFlow<Boolean> = _backupDownloaded
 
-    /**
-     * Restore progress state - observed by UI to show progress indicator during restore
-     */
-    sealed interface RestoreProgress {
-        data class Started(val message: String) : RestoreProgress
-        data class Step(val message: String, val current: Int, val total: Int) : RestoreProgress
-        data class Completed(val message: String) : RestoreProgress
-        data class Failed(val message: String) : RestoreProgress
-        object Idle : RestoreProgress
-    }
-
     private val _restoreProgress = MutableStateFlow<RestoreProgress>(RestoreProgress.Idle)
     val restoreProgress: StateFlow<RestoreProgress> = _restoreProgress
 

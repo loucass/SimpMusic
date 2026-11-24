@@ -97,12 +97,7 @@ actual suspend fun readPickedFile(uri: Uri): ByteArray {
  * Restore progress reported by platform-specific restore implementation
  */
 sealed interface RestoreProgress {
-    data class Started(val message: String) : RestoreProgress
-    data class Step(val message: String, val current: Int, val total: Int) : RestoreProgress
-    data class Completed(val message: String) : RestoreProgress
-    data class Failed(val message: String) : RestoreProgress
-    object Idle : RestoreProgress
-}
+    
 
 /**
  * Shuts down the DownloadManager gracefully so its database can be safely backed up.
@@ -144,7 +139,7 @@ actual suspend fun restoreNative(
     commonRepository: CommonRepository,
     uri: Uri,
     backupDownloaded: Boolean,
-    progressCallback: ((RestoreProgress) -> Unit)? = null,
+    progressCallback: ((RestoreProgress) -> Unit)?,
     getData: () -> Unit,
 ) {
     val application: Context = getKoin().get()
@@ -404,7 +399,7 @@ actual suspend fun backupNative(
     commonRepository: CommonRepository,
     uri: Uri,
     backupDownloaded: Boolean,
-    progressCallback: ((RestoreProgress) -> Unit)? = null,
+    progressCallback: ((RestoreProgress) -> Unit)?,
 ) {
     val application: Context = getKoin().get()
 

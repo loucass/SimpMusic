@@ -25,6 +25,10 @@ import com.maxrave.domain.repository.CacheRepository
 import com.maxrave.domain.repository.DiscordRepository
 import com.maxrave.domain.repository.LibrarySyncRepository
 import com.maxrave.domain.data.model.librarysync.LibrarySyncState
+import com.maxrave.data.repository.BackupContents
+import com.maxrave.data.repository.BackupRestoreConfig
+import com.maxrave.data.repository.BackupResult
+import com.maxrave.data.repository.RestoreResult
 import com.maxrave.domain.repository.CommonRepository
 import com.maxrave.domain.repository.LyricsRomanizerRepository
 import com.maxrave.domain.repository.SongRepository
@@ -1388,12 +1392,22 @@ class SettingsViewModel(
         viewModelScope.launch {
             _backupProgress.value = RestoreProgress.Started(backupInProgress)
             try {
-                withContext(Dispatchers.IO) {
-                    backupNative(commonRepository, uri, backupDownloaded.value, progressCallback = { progress: RestoreProgress ->
-                        _backupProgress.value = progress
-                    })
+                val result = withContext(Dispatchers.IO) {
+                    commonRepository.backupTo(
+                        uri = uri,
+                        config = BackupRestoreConfig(includeDownloads = backupDownloaded.value),
+                        progressCallback = { progress: RestoreProgress ->
+                            _backupProgress.value = progress
+                        }
+                    )
                 }
-                _backupProgress.value = RestoreProgress.Completed(backupCreateSuccess)
+                when (result) {
+                    is BackupResult.Success -> _backupProgress.value = RestoreProgress.Completed(backupCreateSuccess)
+                    is BackupResult.Failure -> {
+                        Logger.e(tag, "Backup failed: ${result.message}", result.cause)
+                        _backupProgress.value = RestoreProgress.Failed(backupCreateFailed)
+                    }
+                }
             } catch (e: Exception) {
                 Logger.e(tag, "Backup failed", e)
                 _backupProgress.value = RestoreProgress.Failed(backupCreateFailed)
@@ -1413,12 +1427,24 @@ class SettingsViewModel(
                     } catch (e: Exception) {
                         Logger.e(tag, "library sync: unpair before restore failed", e)
                     }
-                    restoreNative(commonRepository, uri, backupDownloaded.value, progressCallback = { progress: RestoreProgress ->
-                        // Update progress from platform-specific restore
-                        _restoreProgress.value = progress
-                    })
-                    _restoreProgress.value = RestoreProgress.Completed(restoreSuccess)
-                    getData()
+                    val result = commonRepository.restoreFrom(
+                        uri = uri,
+                        config = BackupRestoreConfig(includeDownloads = backupDownloaded.value),
+                        progressCallback = { progress: RestoreProgress ->
+                            _restoreProgress.value = progress
+                        }
+                    )
+                    when (result) {
+                        is RestoreResult.Success -> {
+                            _restoreProgress.value = RestoreProgress.Completed(restoreSuccess)
+                            getData()
+                            restartAppAfterRestore()
+                        }
+                        is RestoreResult.Failure -> {
+                            Logger.e(tag, "Restore failed: ${result.message}", result.cause)
+                            _restoreProgress.value = RestoreProgress.Failed(restoreFailed)
+                        }
+                    }
                 } catch (e: Exception) {
                     Logger.e(tag, "Restore failed", e)
                     _restoreProgress.value = RestoreProgress.Failed(restoreFailed)
@@ -2229,23 +2255,11 @@ data class SettingBasicAlertState(
 
 expect suspend fun calculateDataFraction(cacheRepository: CacheRepository): SettingsStorageSectionFraction?
 
-expect suspend fun restoreNative(
-    commonRepository: CommonRepository,
-    uri: Uri,
-    backupDownloaded: Boolean,
-    progressCallback: ((RestoreProgress) -> Unit)? = null,
-    getData: () -> Unit = {},
-)
-
 /** Reads the whole of a file the user picked: a content Uri on Android, a plain path on Desktop. */
 expect suspend fun readPickedFile(uri: Uri): ByteArray
 
-expect suspend fun backupNative(
-    commonRepository: CommonRepository,
-    uri: Uri,
-    backupDownloaded: Boolean,
-    progressCallback: ((RestoreProgress) -> Unit)? = null,
-)
+/** Restarts the app after a successful restore. */
+expect fun restartAppAfterRestore()
 
 expect fun getPackageName(): String
 
